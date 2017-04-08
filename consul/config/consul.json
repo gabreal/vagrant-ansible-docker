@@ -1,0 +1,13 @@
+{
+  "datacenter": "cluster",
+  "log_level": "INFO",
+  "node_name": "consul",
+  "server": true,
+  "bootstrap_expect": 1,
+  "client_addr": "0.0.0.0",
+  "data_dir": "/consul/data",
+  "performance": {
+	  "raft_multiplier": 1
+  }
+}
+

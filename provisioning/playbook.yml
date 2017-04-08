@@ -1,0 +1,90 @@
+---
+- hosts: all
+  remote_user: root
+
+- hosts: vm-docker
+  vars:
+    bridgeip: 172.17.0.1
+  tasks:
+    - name: Install required packages
+      apt: name={{ item }} update_cache=yes state=installed force=yes
+      with_items:
+        - zsh
+        - screen
+        - unzip
+        - apt-transport-https
+        - ca-certificates
+        - openssl
+        - postgresql-client
+# start to prepare docker containers
+    - name: workaround for IncompleteRead error bug in Debians python-pip
+      shell: easy_install pip
+    - name: Add docker.io repo
+      apt_repository:
+        repo='deb https://apt.dockerproject.org/repo debian-jessie main'
+        state=present
+        filename=jessie-backports
+    - name: Install docker
+      apt: name=docker-engine update_cache=yes state=installed force=yes
+    - name: Install docker python library
+      pip: name=docker-py version=1.9.0 state=forcereinstall
+    - name: pull consul image from https://hub.docker.com/_/consul/
+      docker_image:
+        name: consul
+    - name: pull postgres image from https://hub.docker.com/_/postgres/
+      docker_image:
+        name: postgres
+    - name: pull debian image for web app from https://hub.docker.com/_/debian/
+      docker_image:
+        name: debian
+        tag: stable-slim
+# launch containers
+    - name: "Launch consul container"
+      docker_container:
+        name: consul 
+        image: consul
+        state: started
+        recreate: yes
+        log_driver: journald
+        volumes:
+          - /vagrant/consul/config:/consul/config:ro
+          - /vagrant/consul/data:/consul/data:rw
+        entrypoint: consul agent -config-dir=/consul/config
+        published_ports: "{{ bridgeip }}:8500:8500"
+    - name: "Launch database container"
+      docker_container:
+        name: db
+        image: postgres
+        state: started
+        restart: yes
+        log_driver: journald
+        env:
+          POSTGRES_PASSWORD: "SheitelfupyuapVek4"
+          PGDATA: "/var/lib/postgresql/data/pgdata"
+        volumes:
+          - /vagrant/pgsql/data:/var/lib/postgresql/data/pgdata:rw
+    - name: Install consul python library
+      pip: name=python-consul
+    - name: add postgresql coordinates to consul kv store
+      consul_kv: host="{{ bridgeip }}" key=postgresql/host value=db
+    - name: add postgresql coordinates to consul kv store
+      consul_kv: host="{{ bridgeip }}" key=postgresql/port value=5432
+    - name: add postgresql coordinates to consul kv store
+      consul_kv: host="{{ bridgeip }}" key=postgresql/user value=postgres
+    - name: add postgresql coordinates to consul kv store
+      consul_kv: host="{{ bridgeip }}" key=postgresql/password value="SheitelfupyuapVek4"
+    - name: "Launch application container"
+      docker_container:
+        name: app
+        hostname: app
+        image: debian
+        state: started
+        recreate: yes
+        log_driver: journald
+        published_ports: 80:8080
+        volumes:
+          - /vagrant/application:/srv/application:ro
+        entrypoint: /bin/sh /srv/application/run.sh
+        links:
+          - consul
+          - db

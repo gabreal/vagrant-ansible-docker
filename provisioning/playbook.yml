@@ -3,6 +3,9 @@
   remote_user: root
 
 - hosts: vm-docker
+  become: yes
+  become_user: root
+  become_method: sudo
   vars:
     bridgeip: 172.17.0.1
   tasks:
@@ -16,6 +19,7 @@
         - ca-certificates
         - openssl
         - postgresql-client
+        - python-setuptools
 # start to prepare docker containers
     - name: workaround for IncompleteRead error bug in Debians python-pip
       shell: easy_install pip

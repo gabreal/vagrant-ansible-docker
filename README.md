@@ -1,16 +1,17 @@
 
 # vagrant-ansible-docker
 
-Deploying a web application on a Digital Ocean VPS server using 
-[Vagrant](https://www.vagrantup.com/), [Ansible](https://www.ansible.com/), 
-[Docker](https://www.docker.com/) and [Consul](https://www.consul.io/).
+Deploying a web application on a local libvirt virtualization environment 
+using [Vagrant](https://www.vagrantup.com/), 
+[Ansible](https://www.ansible.com/), [Docker](https://www.docker.com/) and 
+[Consul](https://www.consul.io/).
 
 ## How it works
 
 Deploy a simple web application with one single command:
 
 * `vagrant up`
-  Fires up a Digital Ocean VPS setting up SSH keys and starts Ansible on it.
+  Fires up a qemu/kvm vm setting up SSH keys and starts Ansible on it.
 
 * Ansible will set up the server according to the playbook.
 
@@ -37,62 +38,50 @@ store](https://www.consul.io/intro/getting-started/kv.html) using
 
 ## Installation
 
+The host running libvirt, vagrant and ansible is running Debian 
+stretch/testing and it deploys a Debian jessie/stable virtual machine.
+
 ### Vagrant
 
-Having a Debian deployment host at hand Vagrant and Ansible can easily be 
+Having a Debian deployment host at hand, Vagrant and Ansible can easily be 
 installed using Debian package management system:
 
-    apt-get install vagrant zlib1g-dev rsync
+    apt-get install vagrant ansible zlib1g-dev rsync
 
-This setup involves Vagrant version 1.6.5 and Ansible version 2.2.1.0 which 
-s available for Debian Jessie via *backports* repository:
-
-    echo 'deb http://ftp.debian.org/debian jessie-backports main' > \
-      /etc/apt/sources.list.d/jessie-backports.list
-
-    apt-get install -t jessie-backports ansible
 
 Choosing a project folder like `/vagrant` requires initialization:
 
-    cd /vagrant
+    mkdir -p ~/vagrant && cd ~/vagrant
     vagrant init
 
-Vagrant can be extended via plugins to support Digital Ocean API for 
-deployment of virtual private servers, i.e.
+Vagrant can be extended via plugins to support libvirt for deployment of 
+virtual servers, i.e. package vagrant-libvirt.
 
-    vagrant plugin install vagrant-digitalocean
 
 The initialization will set up a file called `Vagrantfile` which configures 
-also the connection to the virtual server provider. In order to use Digital 
-Ocean here one can set it up to use it as default provider and set the API 
-token via environment variable:
-
-    export VAGRANT_DEFAULT_PROVIDER=digital_ocean
-    export DIGITAL_OCEAN_ACCESS_TOKEN=...
+also the connection to the virtual server provider.
 
 Some adjustments to `Vagrantfile` are necessary:
 
-    # config.vm.box = "base"
-      config.vm.box = "digital_ocean"
-      config.ssh.private_key_path = "~/.ssh/id_rsa"
+    # set the default vagrant vm provider
+    ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
+    # choose a base image
+    config.vm.box = "debian/jessie64"
+
+    # configure vm requirements
+    config.vm.provider :libvirt do |libvirt|
+      libvirt.memory = "1024"
+      libvirt.cpus = "1"
+    end
     
-      config.vm.provider :digital_ocean do |provider|
-          raise RuntimeError, "No Digital Ocean access token has been set. Set the 
-    \
-    DIGITAL_OCEAN_ACCESS_TOKEN environment variable." unless 
-    ENV["DIGITAL_OCEAN_ACCESS_TOKEN"]
-          provider.token = ENV["DIGITAL_OCEAN_ACCESS_TOKEN"]
-          provider.image = 'debian-8-x64'
-          provider.region = 'fra1'
-          provider.size = '512mb'
-      end
+    # configure hostname and ansible playbook
+    config.vm.define "vm-docker"
+    config.vm.hostname = "vm-docker"
     
-      config.vm.define "vm-docker"
-      config.vm.hostname = "vm-docker"
-    
-      config.vm.provision "ansible" do |ansible|
-          ansible.playbook = "provisioning/playbook.yml"
-      end
+    config.vm.provision "ansible" do |ansible|
+        ansible.playbook = "provisioning/playbook.yml"
+    end
 
 
 This will basically configure Debian as deployment image and a host called 
@@ -100,6 +89,13 @@ This will basically configure Debian as deployment image and a host called
 ing:
 
     config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [ "Vagrantfile", ".git/" ]
+
+
+
+This project's configuration may be directly cloned into that vagrant folder 
+by:
+
+    git clone <path-to-repo> ~/vagrant
 
 
 ### Ansible

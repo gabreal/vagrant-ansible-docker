@@ -1,6 +1,8 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
@@ -8,20 +10,24 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # All Vagrant configuration is done here. The most common configuration
   # options are documented and commented below. For a complete reference,
   # please see the online documentation at vagrantup.com.
-
+ 
   # Every Vagrant virtual environment requires a box to build off of.
-  # config.vm.box = "base"
-  config.vm.box = "digital_ocean"
-  config.ssh.private_key_path = "~/.ssh/id_rsa"
+  config.vm.box = "debian/jessie64"
+  # config.ssh.private_key_path = "~/.ssh/id_rsa"
 
-  config.vm.provider :digital_ocean do |provider|
-	  raise RuntimeError, "No Digital Ocean access token has been set. Set the \
-DIGITAL_OCEAN_ACCESS_TOKEN environment variable." unless ENV["DIGITAL_OCEAN_ACCESS_TOKEN"]
-	  provider.token = ENV["DIGITAL_OCEAN_ACCESS_TOKEN"]
-	  provider.image = 'debian-8-x64'
-	  provider.region = 'fra1'
-	  provider.size = '512mb'
+  config.vm.provider :libvirt do |libvirt|
+	  libvirt.memory = "1024"
+	  libvirt.cpus = "1"
   end
+  # config.vm.box = "digital_ocean"
+  # config.vm.provider :digital_ocean do |provider|
+  #     raise RuntimeError, "No Digital Ocean access token has been set. Set the \
+  # DIGITAL_OCEAN_ACCESS_TOKEN environment variable." unless ENV["DIGITAL_OCEAN_ACCESS_TOKEN"]
+  #     provider.token = ENV["DIGITAL_OCEAN_ACCESS_TOKEN"]
+  #     provider.image = 'debian-8-x64'
+  #     provider.region = 'fra1'
+  #     provider.size = '512mb'
+  # end
 
   config.vm.define "vm-docker"
   config.vm.hostname = "vm-docker"
